@@ -1,0 +1,122 @@
+---
+title: "Reproducible Research: Peer Assessment 1"
+output: 
+  html_document:
+    keep_md: true
+---
+
+This document presents an exploratory analyis of data collected from a personal activity monitoring device by Lorenz Wruck. The original data consists of two months of data from an anonymous individual collected during the months of October and November, 2012 and include the number of steps taken in 5 minute intervals each day.
+
+## Loading and preprocessing the data
+
+Initially, the "Tidyverse" is loaded as well as the data from the file "activity.zip".
+
+````{r,echo=TRUE}
+library(tidyverse)
+data<-read_csv("activity.zip")
+
+```
+
+
+## What is mean total number of steps taken per day?
+
+For evaluating this question the number of steps per day is calculated and the resulting data is displayed in a histogram.
+
+```{r}
+data1<-data%>%group_by(date)%>%summarise(day.steps=sum(steps))
+
+p1<-ggplot(data1,mapping=aes(x=day.steps))
+p1<-p1+geom_histogram()
+p1<-p1+labs(x="Number of daily steps [-]")
+p1
+```
+
+Subsequently the mean and median of the steps per day are calculated.
+
+```{r,echo=TRUE}
+data1<- data1%>%summarise(mean.steps=mean(day.steps,na.rm = TRUE),
+                          median.steps=median(day.steps,na.rm = TRUE))
+
+mean<- data1$mean.steps
+median<- data1$median.steps
+
+```
+The mean is `r mean` steps per day and the median is `r median` steps per day.
+
+## What is the average daily activity pattern?
+
+In order to evaluate the daily activity pattern, the average number of steps is calculated for each time interval and afterwards a time series of the averaged steps over the time intervals is displayed.
+
+```{r,echo=TRUE}
+data21<- data%>%group_by(interval)%>%summarise(mean.interval.steps=mean(steps,na.rm=TRUE))
+
+p2<-ggplot(data21,mapping=aes(x=interval,y=mean.interval.steps))
+p2<-p2+geom_line(size=1,color="blue")
+p2<-p2+labs(x="Time intervals [-]",y="Averaged steps [-]")
+p2
+
+data2<- data21%>%summarise(max.steps=max(mean.interval.steps))          
+data2
+
+
+```
+
+The maximum number of averaged steps is `r data2`.         
+
+## Imputing missing values
+
+Initially, the percentage of missing step values is calculated
+
+```{r,echo=TRUE}
+data3<- data%>%mutate(mis.vals=is.na(steps))
+per.miss<- (table(data3$mis.vals)[2])/sum(table(data3$mis.vals))
+per.miss
+```
+
+The calculation yields, that 13.11% of the step values are missing.
+
+The missing values are imputed by the average for the respective interval.
+
+```{r,echo=TRUE}
+data31<-inner_join(data3%>%filter(mis.vals)%>%select(date,interval),data21,by=c("interval"))
+data31<-data31%>%rename(steps=mean.interval.steps)
+
+data5<- rbind(data3%>%filter(!mis.vals)%>%select(date,interval,steps),data31)
+```
+
+The histogram of daily steps is displayed again, using the dataset with the imputed values.
+```{r,echo=TRUE}
+
+data51<-data5%>%group_by(date)%>%summarise(day.steps=sum(steps,na.rm=T))
+
+p5<-ggplot(data51,mapping=aes(x=day.steps))
+p5<-p5+geom_histogram()
+p5<-p5+geom_vline(mapping=aes(xintercept=mean(day.steps)),linetype="dashed",color="red")
+p5<-p5+geom_vline(mapping=aes(xintercept=median(day.steps),color="red"))
+p5<-p5+labs(x="Number of daily steps [-]")
+p5
+
+
+data52<- data51%>%summarise(mean.steps=mean(day.steps),
+                          median.steps=median(day.steps))
+
+```
+As can be seen in the plot, which features a vertical line for the median and mean, the median and mean value of daily steps are the same
+
+## Are there differences in activity patterns between weekdays and weekends?
+In order to evaluate the differences between weekdays and weekends a plot is generated enabling a comparison of the averaged steps per interval.
+
+```{r,echo=TRUE}
+data6<- data5%>%mutate(weekday=weekdays.Date(date),
+                        today=case_when((weekday=="Samstag"|weekday=="Sonntag")~"weekend",
+                                        (weekday=="Montag"|weekday=="Dienstag"|weekday=="Mittwoch"|weekday=="Donnerstag"|weekday=="Freitag")~"weekday"))
+
+data6<- data6%>%group_by(today,interval)%>%summarise(ave.steps=mean(steps))   
+
+p6<-ggplot(data6,mapping=aes(x=interval,y=ave.steps))
+p6<-p6+geom_line(size=1,color="blue")
+p6<-p6+facet_grid(rows=vars(today))
+p6<-p6+labs(x="Time intervals [-]",y="Averaged steps [-]")
+p6
+```
+Comparison of the plots shows a peak in the morning for weekdays and a more evenly distribution on a lower level for weekdays.
