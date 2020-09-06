@@ -8,15 +8,39 @@ output:
 
 ## Loading and preprocessing the data
 
+````{r}
+library(tidyverse)
+data<-read_csv("activity.zip")
+
+```
 
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+data1<-data%>%group_by(date)%>%summarise(day.steps=sum(steps))
 
+p1<-ggplot(data1,mapping=aes(x=day.steps))
+p1<-p1+geom_histogram()
+p1<-p1+labs(x="Number of daily steps [-]")
+p1
+
+data1<- data1%>%summarise(mean.steps=mean(day.steps),
+                          median.steps=median(day.steps))
+```
 
 ## What is the average daily activity pattern?
 
+```{r}
+data2<- data%>%group_by(interval)%>%summarise(mean.interval.steps=mean(steps,na.rm=TRUE))
 
+p2<-ggplot(data2,mapping=aes(x=interval,y=mean.interval.steps))
+p2<-p2+geom_point(size=2,color="blue")
+p2<-p2+labs(x="Time intervals [-]",y="Averaged steps [-]")
+p2
+```
+
+          
 
 ## Imputing missing values
 
